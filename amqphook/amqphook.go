@@ -30,7 +30,7 @@ func NewAmqpHook(connString, exchangeName, routingKey string) *AmqpHook {
 		logOutputChan: make(chan *logrus.Entry, bufferSize),
 	}
 
-	rb := NewRingBuffer(hook.logInputChan, hook.logOutputChan)
+	rb := newRingBuffer(hook.logInputChan, hook.logOutputChan)
 	go rb.Run()
 	go hook.handle()
 

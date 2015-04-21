@@ -4,16 +4,16 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-type RingBuffer struct {
+type ringBuffer struct {
 	inputChannel  <-chan *logrus.Entry
 	outputChannel chan *logrus.Entry
 }
 
-func NewRingBuffer(inputChannel <-chan *logrus.Entry, outputChannel chan *logrus.Entry) *RingBuffer {
-	return &RingBuffer{inputChannel, outputChannel}
+func newRingBuffer(inputChannel <-chan *logrus.Entry, outputChannel chan *logrus.Entry) *ringBuffer {
+	return &ringBuffer{inputChannel, outputChannel}
 }
 
-func (r *RingBuffer) Run() {
+func (r *ringBuffer) Run() {
 	for v := range r.inputChannel {
 		select {
 		case r.outputChannel <- v:
