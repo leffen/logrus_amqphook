@@ -8,7 +8,7 @@ import (
 )
 
 func TestHook(t *testing.T) {
-	hook := NewAmqpHook("amqps://ca.paxtonagent.logger:k7qRMWe5wa@mq1.cloudaccess.io", "ca.logging.e.prod", "logrus.")
+	hook := NewAmqpHook("TestApp", "amqps://ca.paxtonagent.logger:k7qRMWe5wa@mq1.cloudaccess.io", "ca.logging.e.prod", "logrus.")
 	logrus.SetFormatter(new(logstash.LogstashFormatter))
 	logrus.AddHook(hook)
 	logrus.Errorf("Something broke...")
