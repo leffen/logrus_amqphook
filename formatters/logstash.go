@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"os"
+	"time"
 )
 
 // Formatter generates json in logstash format.
@@ -15,11 +16,13 @@ type LogstashFormatter struct {
 	TimestampFormat string // TimestampFormat sets the format used for timestamps.
 }
 
-func NewLogstashFormatter() *LogstashFormatter {
+func NewLogstashFormatter(logstashType string) *LogstashFormatter {
 	hostname, _ := os.Hostname()
 
 	return &LogstashFormatter{
-		Source: hostname,
+		Source:          hostname,
+		TimestampFormat: time.RFC3339Nano,
+		Type:            logstashType,
 	}
 }
 
