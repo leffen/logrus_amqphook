@@ -38,14 +38,14 @@ func (f *LogstashFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	// set message field
 	v, ok := entry.Data["message"]
 	if ok {
-		entry.Data["fields.message"] = v
+		entry.Data["@fields.message"] = v
 	}
 	entry.Data["message"] = entry.Message
 
 	// set level field
 	v, ok = entry.Data["level"]
 	if ok {
-		entry.Data["fields.level"] = v
+		entry.Data["@fields.level"] = v
 	}
 	entry.Data["level"] = entry.Level.String()
 
@@ -53,7 +53,7 @@ func (f *LogstashFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	if f.Type != "" {
 		v, ok = entry.Data["type"]
 		if ok {
-			entry.Data["fields.type"] = v
+			entry.Data["@fields.type"] = v
 		}
 		entry.Data["type"] = f.Type
 	}
@@ -61,7 +61,7 @@ func (f *LogstashFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	if f.Source != "" {
 		v, ok = entry.Data["source"]
 		if ok {
-			entry.Data["fields.source"] = v
+			entry.Data["@fields.source"] = v
 		}
 		entry.Data["source"] = f.Source
 	}
