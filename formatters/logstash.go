@@ -34,8 +34,8 @@ func (f *LogstashFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 		f.TimestampFormat = logrus.DefaultTimestampFormat
 	}
 
-	entry.Data["timestamp"] = entry.Time.Format(f.TimestampFormat)
-	//entry.Data["timestamp_string"] = entry.Time.Format(f.TimestampFormat)
+	entry.Data["@timestamp"] = entry.Time.Format(f.TimestampFormat)
+	entry.Data["timestamp_string"] = entry.Time.Format(f.TimestampFormat)
 
 	// set message field
 	entry.Data["message"] = entry.Message
