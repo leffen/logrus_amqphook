@@ -20,6 +20,7 @@ type AmqpHook struct {
   logInputChan  chan *logrus.Entry
   logOutputChan chan *logrus.Entry
   amqpChan      *amqp.Channel
+  Formatter     *GelfJsonFormatter
 }
 
 func NewAmqpHook(connString, exchangeName, routingKey string) *AmqpHook {
@@ -29,6 +30,7 @@ func NewAmqpHook(connString, exchangeName, routingKey string) *AmqpHook {
     routingKey:    routingKey,
     logInputChan:  make(chan *logrus.Entry),
     logOutputChan: make(chan *logrus.Entry, bufferSize),
+    Formatter:     NewFormatter(),
   }
 
   rb := newRingBuffer(hook.logInputChan, hook.logOutputChan)
@@ -39,9 +41,8 @@ func NewAmqpHook(connString, exchangeName, routingKey string) *AmqpHook {
 }
 
 func (hook *AmqpHook) Fire(entry *logrus.Entry) error {
-  fmt.Println(entry)
-  hook.logInputChan <- entry
-  //hook.logOutputChan <- entry
+  //hook.logInputChan <- entry
+  hook.logOutputChan <- entry
 
   return nil
 }
@@ -58,8 +59,11 @@ func (hook *AmqpHook) Levels() []logrus.Level {
 }
 
 func (hook *AmqpHook) handle() {
+
+
   for msg := range hook.logOutputChan {
-    logEntry, _ := msg.String()
+
+    logEntry, _ := hook.Formatter.Format(msg)
     attempt := 0
 
     for {
@@ -94,6 +98,8 @@ func (hook *AmqpHook) buildChannel() (*amqp.Channel, error) {
   if err != nil {
     return nil, err
   }
+
+  fmt.Println("Connected to rabbit with ",hook.connString)
 
   amqpChan, err := conn.Channel()
   if err != nil {
