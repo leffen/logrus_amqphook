@@ -4,12 +4,14 @@ import (
 	"github.com/Sirupsen/logrus"
 	"testing"
 	"time"
+	"os"
+	_ "github.com/joho/godotenv/autoload"
 )
 
 func TestHook(t *testing.T) {
-	hook := NewAmqpHook( "amqps://ca.paxtonagent.logger:k7qRMWe5wa@mq1.cloudaccess.io", "ca.logging.e.prod","")
+	hook := NewAmqpHook( os.Getenv("TEST_CONNECTION"), "graylog_test","#")
 	logrus.SetFormatter(new(LogstashFormatter))
 	logrus.AddHook(hook)
-	logrus.Errorf("Something broke...")
+	logrus.Errorf("Sender en feil her gitt")
 	time.Sleep(1 * time.Second)
 }
