@@ -5,7 +5,6 @@ import (
   "github.com/streadway/amqp"
   "log"
   "time"
-  "fmt"
 )
 
 const (
@@ -42,8 +41,8 @@ func NewAmqpHook(connString, exchangeName, routingKey string) *AmqpHook {
 
 func (hook *AmqpHook) Fire(entry *logrus.Entry) error {
   //hook.logInputChan <- entry
-  hook.logOutputChan <- entry
-
+  // hook.logOutputChan <- entry
+  hook.sendEvent(entry)
   return nil
 }
 
@@ -59,37 +58,38 @@ func (hook *AmqpHook) Levels() []logrus.Level {
 }
 
 func (hook *AmqpHook) handle() {
-
-
   for msg := range hook.logOutputChan {
+    hook.sendEvent(msg)
+  }
+}
 
-    logEntry, _ := hook.Formatter.Format(msg)
-    attempt := 0
+func (hook *AmqpHook) sendEvent(entry *logrus.Entry) {
+  logEntry, _ := hook.Formatter.Format(entry)
+  attempt := 0
 
-    for {
-      attempt++
-      if attempt > 1 {
-        time.Sleep(sleepBetweenFails) // Let the amqp server rest a little
-      }
+  for {
+    attempt++
+    if attempt > 1 {
+      time.Sleep(sleepBetweenFails) // Let the amqp server rest a little
+    }
 
-      if hook.amqpChan == nil {
-        c, err := hook.buildChannel()
-        if err != nil {
-          log.Println(err)
-          continue
-        }
-        hook.amqpChan = c
-      }
-
-      if err := hook.amqpChan.Publish(hook.exchangeName, hook.routingKey, false, false, amqp.Publishing{
-        Body:         []byte(logEntry),
-        DeliveryMode: amqp.Persistent,
-      }); err != nil {
+    if hook.amqpChan == nil {
+      c, err := hook.buildChannel()
+      if err != nil {
         log.Println(err)
         continue
       }
-      break
+      hook.amqpChan = c
     }
+
+    if err := hook.amqpChan.Publish(hook.exchangeName, hook.routingKey, false, false, amqp.Publishing{
+      Body:         []byte(logEntry),
+      DeliveryMode: amqp.Persistent,
+    }); err != nil {
+      log.Println(err)
+      continue
+    }
+    break
   }
 }
 
@@ -98,9 +98,6 @@ func (hook *AmqpHook) buildChannel() (*amqp.Channel, error) {
   if err != nil {
     return nil, err
   }
-
-  fmt.Println("Connected to rabbit with ",hook.connString)
-
   amqpChan, err := conn.Channel()
   if err != nil {
     return nil, err

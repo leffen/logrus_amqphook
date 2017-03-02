@@ -9,38 +9,50 @@ import (
 	"github.com/Sirupsen/logrus"
 
   "path"
+  "sync"
 )
 
 
 type GelfJsonFormatter struct {
 	Source          string
-	Type            string // If not empty use for logstash type field.
-	TimestampFormat string // TimestampFormat sets the format used for timestamps.
+	Type            string
   HostName        string
   Facility        string
+  wg          sync.WaitGroup
+  mu          sync.RWMutex
 }
 
 func NewFormatter() *GelfJsonFormatter {
 	hostname, _ := os.Hostname()
 
-	return &GelfJsonFormatter{
+ 	return &GelfJsonFormatter{
 		Source:          hostname,
-		TimestampFormat: time.RFC3339Nano,
     HostName:         hostname,
     Facility:         path.Base(os.Args[0]),
 	}
 }
 
-func (f *GelfJsonFormatter) Format(entry *logrus.Entry) ([]byte, error) {
-	entry.Data["version"] = "1.1"
-	entry.Data["timestamp"] = float64(time.Now().UnixNano()/1000000) / 1000.
-	entry.Data["short_message"] = entry.Message
-	entry.Data["host"] = f.HostName
-	entry.Data["level"] = entry.Level.String()
-	if f.Type != "" { entry.Data["type"] = f.Type }
-  entry.Data["source"] = f.Source
 
-	serialized, err := json.Marshal(entry.Data)
+
+func (f *GelfJsonFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+
+  f.mu.RLock() // Claim the mutex as a RLock - allowing multiple go routines to log simultaneously
+  defer f.mu.RUnlock()
+
+  newData := make(map[string]interface{})
+  for k, v := range entry.Data {
+    newData[fmt.Sprintf("_%s",k)] = v
+  }
+
+  newData["version"] = "1.1"
+  newData["timestamp"] = float64(time.Now().UnixNano()/1000000) / 1000.
+  newData["short_message"] = entry.Message
+  newData["host"] = f.HostName
+  newData["facility"] = f.Facility
+  newData["level"] = entry.Level.String()
+  newData["_source"] = f.Source
+
+  serialized, err := json.Marshal(newData)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to marshal fields to JSON, %v", err)
 	}
