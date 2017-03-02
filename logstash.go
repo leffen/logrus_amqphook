@@ -1,4 +1,4 @@
-package logstash
+package logrus_amqphook
 
 import (
 	"encoding/json"

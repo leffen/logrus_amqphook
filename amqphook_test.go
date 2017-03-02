@@ -1,4 +1,4 @@
-package amqphook
+package logrus_amqphook
 
 import (
 	"github.com/Sirupsen/logrus"
