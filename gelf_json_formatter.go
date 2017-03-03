@@ -49,7 +49,8 @@ func (f *GelfJsonFormatter) Format(entry *logrus.Entry) ([]byte, error) {
   newData["short_message"] = entry.Message
   newData["host"] = f.HostName
   newData["facility"] = f.Facility
-  newData["level"] = entry.Level.String()
+  newData["level"] = entry.Level
+  newData["_level_str"] = entry.Level.String()
   newData["_source"] = f.Source
 
   serialized, err := json.Marshal(newData)
