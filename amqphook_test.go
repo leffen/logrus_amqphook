@@ -1,17 +1,24 @@
 package logrus_amqphook
 
 import (
-	"github.com/Sirupsen/logrus"
+	"os"
 	"testing"
 	"time"
-	"os"
+
+	"github.com/Sirupsen/logrus"
 	_ "github.com/joho/godotenv/autoload"
 )
 
 func TestHook(t *testing.T) {
-	hook := NewAmqpHook( os.Getenv("TEST_CONNECTION"), "graylog_test","#")
+	hook := NewAmqpHook(os.Getenv("TEST_CONNECTION"), "graylog_test", "#")
 	logrus.SetFormatter(new(GelfJsonFormatter))
 	logrus.AddHook(hook)
 	logrus.Errorf("Sender en feil her gitt")
+	logrus.WithFields(logrus.Fields{
+		"Server UID":  "UID",
+		"Camera":      "Name",
+		"Camera IP":   "SrvIP",
+		"Camera port": "SrvPort",
+	}).Errorf("Sender en PARAM feil her gitt")
 	time.Sleep(1 * time.Second)
 }
