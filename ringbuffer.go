@@ -1,7 +1,7 @@
 package logrus_amqphook
 
 import (
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 type ringBuffer struct {

@@ -4,7 +4,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
 
@@ -107,7 +107,7 @@ func (hook *AmqpHook) buildChannel() (*amqp.Channel, error) {
 		return nil, err
 	}
 
-	err = amqpChan.ExchangeDeclare(hook.exchangeName, "fanout", true, true, false, true, nil)
+	err = amqpChan.ExchangeDeclare(hook.exchangeName, "fanout", true, true, true, true, nil)
 	if err != nil {
 		return nil, err
 	}
