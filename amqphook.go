@@ -1,7 +1,6 @@
 package logrus_amqphook
 
 import (
-	"log"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -24,6 +23,10 @@ type AmqpHook struct {
 	logOutputChan chan *logrus.Entry
 	amqpChan      *amqp.Channel
 	Formatter     *GelfJsonFormatter
+
+	AutoDeleteExchange bool
+	InternalExchange   bool
+	NowaitExchange     bool
 }
 
 func NewAmqpHook(connString, exchangeName, routingKey string) *AmqpHook {
@@ -80,7 +83,7 @@ func (hook *AmqpHook) sendEvent(entry *logrus.Entry) {
 		if hook.amqpChan == nil {
 			c, err := hook.buildChannel()
 			if err != nil {
-				log.Println(err)
+				logrus.Errorf("AmqpHook.sendEvent>Unable to build channel %s with error %s", hook.exchangeName, err)
 				continue
 			}
 			hook.amqpChan = c
@@ -90,7 +93,8 @@ func (hook *AmqpHook) sendEvent(entry *logrus.Entry) {
 			Body:         []byte(logEntry),
 			DeliveryMode: amqp.Persistent,
 		}); err != nil {
-			log.Println("Unable to publish:", err)
+
+			logrus.Errorf("AmqpHook.sendEvent>Unable to publish to %s with error: %s", hook.exchangeName, err)
 			continue
 		}
 		break
@@ -107,7 +111,7 @@ func (hook *AmqpHook) buildChannel() (*amqp.Channel, error) {
 		return nil, err
 	}
 
-	err = amqpChan.ExchangeDeclare(hook.exchangeName, "fanout", true, true, true, true, nil)
+	err = amqpChan.ExchangeDeclare(hook.exchangeName, "fanout", true, hook.AutoDeleteExchange, hook.InternalExchange, hook.NowaitExchange, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +121,7 @@ func (hook *AmqpHook) buildChannel() (*amqp.Channel, error) {
 	amqpChan.NotifyClose(amqpErrorChan)
 	go func(h *AmqpHook, ec chan *amqp.Error) {
 		for msg := range ec {
-			log.Println(msg)
+			logrus.Errorf("AmqpHook.buildChannel> Channel Cleanup %s\n", msg)
 			h.amqpChan = nil
 		}
 	}(hook, amqpErrorChan)
