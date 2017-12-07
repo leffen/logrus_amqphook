@@ -1,6 +1,7 @@
 package logrus_amqphook
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -8,13 +9,14 @@ import (
 )
 
 // VERSION of the application
-const VERSION = "1.0.7"
+const VERSION = "1.1.0"
 
 const (
-	bufferSize        = 1000
-	sleepBetweenFails = 10 * time.Second
+	sleepBetweenFails = time.Second
+	maxAttemts        = 10
 )
 
+// AmqpHook handles connection properties
 type AmqpHook struct {
 	connString    string
 	exchangeName  string
@@ -29,48 +31,29 @@ type AmqpHook struct {
 	NowaitExchange     bool
 }
 
+// NewAmqpHook creates a new hook to logrus
 func NewAmqpHook(connString, exchangeName, routingKey string) *AmqpHook {
 	hook := &AmqpHook{
-		connString:    connString,
-		exchangeName:  exchangeName,
-		routingKey:    routingKey,
-		logInputChan:  make(chan *logrus.Entry),
-		logOutputChan: make(chan *logrus.Entry, bufferSize),
-		Formatter:     NewFormatter(),
+		connString:   connString,
+		exchangeName: exchangeName,
+		routingKey:   routingKey,
+		Formatter:    NewFormatter(),
 	}
-
-	rb := newRingBuffer(hook.logInputChan, hook.logOutputChan)
-	go rb.Run()
-	go hook.handle()
 
 	return hook
 }
 
+// Fire delivers entry to amqp
 func (hook *AmqpHook) Fire(entry *logrus.Entry) error {
-	//hook.logInputChan <- entry
-	// hook.logOutputChan <- entry
-	hook.sendEvent(entry)
-	return nil
-}
-
-func (hook *AmqpHook) Levels() []logrus.Level {
-	return []logrus.Level{
-		logrus.PanicLevel,
-		logrus.FatalLevel,
-		logrus.ErrorLevel,
-		logrus.WarnLevel,
-		logrus.InfoLevel,
-		logrus.DebugLevel,
+	if hook.amqpChan == nil {
+		c, err := hook.buildChannel()
+		if err != nil {
+			return fmt.Errorf("AmqpEhook.sendEvent>Unable to build channel %s with error %s", hook.exchangeName, err)
+		}
+		hook.amqpChan = c
 	}
-}
 
-func (hook *AmqpHook) handle() {
-	for msg := range hook.logOutputChan {
-		hook.sendEvent(msg)
-	}
-}
-
-func (hook *AmqpHook) sendEvent(entry *logrus.Entry) {
+	var err error
 	logEntry, _ := hook.Formatter.Format(entry)
 	attempt := 0
 
@@ -80,24 +63,31 @@ func (hook *AmqpHook) sendEvent(entry *logrus.Entry) {
 			time.Sleep(sleepBetweenFails) // Let the amqp server rest a little
 		}
 
-		if hook.amqpChan == nil {
-			c, err := hook.buildChannel()
-			if err != nil {
-				logrus.Errorf("AmqpHook.sendEvent>Unable to build channel %s with error %s", hook.exchangeName, err)
-				continue
-			}
-			hook.amqpChan = c
+		if attempt > maxAttemts {
+			return fmt.Errorf("Max retries exceeded. Last error %s", err)
 		}
 
-		if err := hook.amqpChan.Publish(hook.exchangeName, hook.routingKey, false, false, amqp.Publishing{
-			Body:         []byte(logEntry),
-			DeliveryMode: amqp.Persistent,
-		}); err != nil {
+		err = hook.amqpChan.Publish(hook.exchangeName, hook.routingKey, false, false, amqp.Publishing{Body: logEntry, DeliveryMode: amqp.Persistent})
 
-			logrus.Errorf("AmqpHook.sendEvent>Unable to publish to %s with error: %s", hook.exchangeName, err)
+		if err != nil {
+			logrus.Errorf("AmqpEhook.sendEvent>Unable to publish to %s with error: %s", hook.exchangeName, err)
 			continue
 		}
 		break
+	}
+
+	return nil
+}
+
+// Levels is available logging levels
+func (hook *AmqpHook) Levels() []logrus.Level {
+	return []logrus.Level{
+		logrus.PanicLevel,
+		logrus.FatalLevel,
+		logrus.ErrorLevel,
+		logrus.WarnLevel,
+		logrus.InfoLevel,
+		logrus.DebugLevel,
 	}
 }
 
@@ -125,5 +115,5 @@ func (hook *AmqpHook) buildChannel() (*amqp.Channel, error) {
 			h.amqpChan = nil
 		}
 	}(hook, amqpErrorChan)
-	return amqpChan, err
+	return amqpChan, nil
 }
