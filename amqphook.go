@@ -9,7 +9,7 @@ import (
 )
 
 // VERSION of the application
-const VERSION = "1.1.0"
+const VERSION = "1.1.1"
 
 const (
 	sleepBetweenFails = time.Second
